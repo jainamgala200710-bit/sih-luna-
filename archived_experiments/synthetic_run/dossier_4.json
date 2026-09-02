@@ -1,0 +1,67 @@
+{
+    "Match Information": {
+        "Match ID": "41 -> 30",
+        "Status": "Accepted",
+        "Source Coordinates (x,y)": [
+            37.41,
+            484.528
+        ],
+        "Reference Coordinates (x,y)": [
+            37.315,
+            480.745
+        ],
+        "Descriptor Distance": 61.9677,
+        "Source Scale (Size)": 6.15,
+        "Reference Scale (Size)": 6.32,
+        "Scale Ratio (Ref/Src)": 1.028,
+        "Source Angle": 320.5,
+        "Reference Angle": 312.0,
+        "Angle Difference": 8.4
+    },
+    "Feature Patch Visualization": "backend/cache/results/test_e2e_session_999\\match_patch_4.png",
+    "Geometric Consistency": {
+        "Geometric Status": "Inlier (Accepted)",
+        "Calculated Reprojection Error (px)": 2.384,
+        "Allowed Threshold (px)": 3.0,
+        "Projected Coordinates (x,y)": [
+            37.847,
+            478.421
+        ],
+        "Actual Target Coordinates (x,y)": [
+            37.315,
+            480.745
+        ]
+    },
+    "Source Point Refinement": {
+        "Original Integer Coordinate": [
+            37.41,
+            484.53
+        ],
+        "Refined Sub-Pixel Coordinate": [
+            37.4104,
+            484.5284
+        ],
+        "Translation Vector (dx, dy)": [
+            0.0,
+            0.0
+        ],
+        "Translation Magnitude (px)": 0.0
+    },
+    "Target Point Refinement": {
+        "Original Integer Coordinate": [
+            37.32,
+            480.74
+        ],
+        "Refined Sub-Pixel Coordinate": [
+            37.1302,
+            480.7758
+        ],
+        "Translation Vector (dx, dy)": [
+            -0.1852,
+            0.0311
+        ],
+        "Translation Magnitude (px)": 0.1878
+    },
+    "Source Uncertainty Visualization": "backend/cache/results/test_e2e_session_999\\uncertainty_kp_4_src.png",
+    "Reference Uncertainty Visualization": "backend/cache/results/test_e2e_session_999\\uncertainty_kp_4_ref.png"
+}

@@ -1,0 +1,58 @@
+# Experiment Template Configuration
+# This template defines the structure for experiment configurations
+
+# Experiment metadata
+experiment:
+  id: null  # Will be auto-generated if not provided
+  name: "Experiment Name"
+  description: "Description of the experiment"
+  tags: []  # List of tags for categorization
+  creator: "Unknown"
+  created_at: null  # Timestamp (auto-generated)
+  
+# Configuration used for this experiment
+configuration:
+  # Reference to base configuration (can override specific values)
+  base_config: "default"
+  # Override specific configuration values
+  overrides: {}
+  
+# Dataset information
+dataset:
+  # Synthetic or real data identifier
+  type: "synthetic"  # or "real"
+  # Specific dataset name or identifier
+  name: "Dataset Name"
+  # Number of image pairs used
+  num_pairs: 0
+  # Preprocessing applied
+  preprocessing: []
+  
+# Model/Model configuration
+model:
+  # Feature detector used
+  detector: "SIFT"
+  # Matcher used
+  matcher: "BF"
+  # Geometric verification method
+  verification: "RANSAC"
+  # Whether uniform distribution was applied
+  uniform_distribution: true
+  # Whether sub-pixel refinement was applied
+  subpixel_refinement: true
+  
+# Results
+results:
+  # Primary metrics
+  metrics:
+    match_count: 0
+    inlier_count: 0
+    inlier_ratio: 0.0
+    rmse: 0.0
+    reprojection_error: 0.0
+    processing_time: 0.0
+  # Detailed results (can be extended)
+  details: {}
+  
+# Notes and observations
+notes: ""

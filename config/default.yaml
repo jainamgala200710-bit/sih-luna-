@@ -1,0 +1,128 @@
+# LunaAlign AI Configuration
+# Default configuration settings
+
+# Project information
+project:
+  name: "LunaAlign AI"
+  version: "1.0.0"
+  description: "A Multi-Modal, Illumination-Invariant Lunar Image Correspondence and Registration System"
+
+# Paths configuration
+paths:
+  data_root: "data"
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  synthetic_data: "data/synthetic"
+  pairs_data: "data/pairs"
+  metadata: "data/metadata"
+  splits: "data/splits"
+  src_root: "src"
+  models: "models"
+  experiments: "experiments"
+  results: "results"
+  notebooks: "notebooks"
+  tests: "tests"
+  docs: "docs"
+  frontend: "frontend"
+  backend: "backend"
+
+# Data settings
+data:
+  # Supported image formats
+  supported_formats: [".img", ".pds", ".fits", ".tif", ".tiff", ".jpg", ".jpeg", ".png"]
+  # Maximum image dimension for processing (to avoid memory issues)
+  max_dimension: 4096
+  # Tile size for large image processing
+  tile_size: 1024
+
+# Preprocessing settings
+preprocessing:
+  # CLAHE parameters
+  clahe:
+    clip_limit: 2.0
+    tile_grid_size: [8, 8]
+  # Gaussian blur kernel size
+  gaussian_kernel: 5
+  # Multi-scale pyramid levels
+  pyramid_levels: 4
+
+# Feature matching settings
+matching:
+  # Feature detector type: SIFT, ORB, SUPERPOINT, etc.
+  detector: "SIFT"
+  # Matcher type: BF, FLANN
+  matcher: "BF"
+  # Ratio test threshold (for SIFT)
+  ratio_threshold: 0.75
+  # Cross-check enabled
+  cross_check: true
+  # Maximum number of features to detect
+  max_features: 2000
+
+# Geometric verification settings
+verification:
+  # Algorithm: RANSAC, USAC, MAGSAC
+  algorithm: "RANSAC"
+  # Reprojection error threshold
+  reprojection_threshold: 3.0
+  # Confidence level
+  confidence: 0.99
+  # Maximum iterations
+  max_iterations: 1000
+
+# Uniform distribution settings
+distribution:
+  # Grid size for spatial binning (adaptive base)
+  base_grid_size: 64
+  # Suppression threshold (keep top N matches per cell)
+  max_matches_per_cell: 5
+  # Minimum matches required for valid registration
+  min_matches: 10
+
+# Sub-pixel refinement settings
+subpixel:
+  # Window size for corner refinement
+  window_size: [5, 5]
+  # Zero zone for corner refinement
+  zero_zone: [-1, -1]
+  # Criteria for iterative refinement
+  criteria_max_count: 30
+  criteria_epsilon: 0.001
+
+# Evaluation settings
+evaluation:
+  # Metrics to compute
+  metrics: ["rmse", "reprojection_error", "inlier_ratio", "match_count", "distribution_entropy"]
+  # Acceptance thresholds
+  rmse_threshold: 2.0
+  inlier_ratio_threshold: 0.5
+
+# Backend API settings (for FastAPI)
+backend:
+  host: "0.0.0.0"
+  port: 8000
+  debug: true
+  # CORS origins
+  cors_origins: ["*"]
+
+# Experiment tracking
+experiment:
+  # Enable experiment tracking
+  enabled: true
+  # Auto-save frequency (in minutes)
+  autosave_interval: 5
+  # Maximum number of experiments to keep in memory
+  max_memory_experiments: 100
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  # File logging
+  file_enabled: true
+  file_path: "logs/lunaalign.log"
+  file_rotation: "midnight"  # Rotate at midnight
+  file_backup_count: 30
+  # Console logging
+  console_enabled: true
