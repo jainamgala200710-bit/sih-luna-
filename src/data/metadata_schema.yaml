@@ -1,0 +1,178 @@
+# Metadata Schema for Lunar Images in LunaAlign AI
+# Defines the structure for tracking image metadata
+
+image_properties:
+  # Unique identifier for the image (UUID or mission-specific ID)
+  image_id:
+    type: string
+    description: "Unique identifier for the image"
+    required: true
+
+  # Mission and instrument information
+  mission:
+    type: string
+    description: "Space mission name (e.g., Chandrayaan-2, LRO, SELENE)"
+    required: true
+    enum: [Chandrayaan-2, LRO, SELENE]
+
+  instrument:
+    type: string
+    description: "Instrument that captured the image"
+    required: true
+    # Examples will be documented separately
+
+  # Temporal information
+  acquisition_date:
+    type: string
+    format: date-time
+    description: "Date and time when the image was acquired"
+    required: true
+
+  # Spatial properties
+  spatial_resolution:
+    type: number
+    description: "Ground sample distance in meters per pixel"
+    minimum: 0
+    required: true
+
+  # Image properties
+  bands:
+    type: array
+    description: "List of spectral bands present in the image"
+    items:
+      type: string
+    minItems: 1
+
+  band_wavelengths:
+    type: array
+    description: "Central wavelength for each band in nanometers"
+    items:
+      type: number
+      minimum: 0
+    minItems: 1
+
+  # Geometric information (if available)
+  image_width:
+    type: integer
+    description: "Image width in pixels"
+    minimum: 1
+
+  image_height:
+    type: integer
+    description: "Image height in pixels"
+    minimum: 1
+
+  # File information
+  file_path:
+    type: string
+    description: "Relative path to the image file from project root"
+    required: true
+
+  file_format:
+    type: string
+    description: "File format/extension"
+    required: true
+    enum: [IMG, PDS, FITS, TIFF, JPEG, PNG]
+
+  file_size_bytes:
+    type: integer
+    description: "Size of the file in bytes"
+    minimum: 0
+
+  # Processing level
+  processing_level:
+    type: string
+    description: "Level of processing applied to the data"
+    required: true
+    enum: [RAW, CALIBRATED, GEOREFERENCED, MAP_PROJECTED]
+
+  # Quality indicators
+  quality_score:
+    type: number
+    description: "Overall quality assessment (0-1 scale)"
+    minimum: 0
+    maximum: 1
+
+  has_artifacts:
+    type: boolean
+    description: "Whether the image contains noticeable artifacts"
+
+  cloud_coverage:
+    type: number
+    description: "Percentage of image affected by clouds (for Earth-based observations)"
+    minimum: 0
+    maximum: 100
+
+  # Additional metadata (free-form key-value pairs)
+  additional_metadata:
+    type: object
+    description: "Any additional mission-specific metadata"
+
+# Schema for image pairs
+pair_properties:
+  pair_id:
+    type: string
+    description: "Unique identifier for the image pair"
+    required: true
+
+  source_image_id:
+    type: string
+    description: "Reference to the source image in the pair"
+    required: true
+
+  reference_image_id:
+    type: string
+    description: "Reference to the reference image in the pair"
+    required: true
+
+  # Relationship between images
+  pair_type:
+    type: string
+    description: "Type of pairing (same_sensor, cross_resolution, cross_mission, etc.)"
+    required: true
+    enum: [same_sensor, cross_resolution, cross_mission, multi_temporal]
+
+  # Temporal baseline
+  time_difference_seconds:
+    type: number
+    description: "Time difference between acquisitions in seconds"
+
+  # Expected transformation (if known)
+  expected_translation_px:
+    type: array
+    description: "Expected translation in pixels [x, y]"
+    items:
+      type: number
+    minItems: 2
+    maxItems: 2
+
+  expected_rotation_degrees:
+    type: number
+    description: "Expected rotation in degrees"
+
+  expected_scale:
+    type: number
+    description: "Expected scale factor"
+
+  # Ground truth availability
+  has_ground_truth:
+    type: boolean
+    description: "Whether ground truth transformation is known"
+
+  ground_truth_transformation:
+    type: object
+    description: "Ground truth transformation parameters (if available)"
+    # Structure depends on transformation type
+
+  # Quality of the pair for registration
+  pair_quality_score:
+    type: number
+    description: "Suitability of the pair for registration (0-1 scale)"
+    minimum: 0
+    maximum: 1
+
+  overlap_estimate:
+    type: number
+    description: "Estimated percentage of overlap between images"
+    minimum: 0
+    maximum: 100

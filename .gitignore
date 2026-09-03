@@ -121,14 +121,7 @@ dmypy.json
 *.nc
 *.h5
 *.hdf
-*.img
-*.pds
-*.fits
-*.tif
-*.tiff
-*.jpg
-*.jpeg
-*.png
+
 
 # IDE
 .vscode/
@@ -152,9 +145,4 @@ data/splits/
 models/
 experiments/
 results/
-notebooks/
-tests/
-docs/
-frontend/
-backend/
-src/
+
