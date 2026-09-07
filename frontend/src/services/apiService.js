@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = 'http://localhost:8001/api/v1';
 
 export const apiService = {
   async uploadImages(sourceFile, referenceFile) {
@@ -38,7 +38,7 @@ export const apiService = {
   },
 
   getWebSocketUrl(sessionId) {
-    return `ws://localhost:8000/api/v1/registration/ws/progress/${sessionId}`;
+    return `ws://localhost:8001/api/v1/registration/ws/progress/${sessionId}`;
   },
 
   getImageUrl(sessionId, type, idx) {
@@ -47,5 +47,27 @@ export const apiService = {
 
   getRawImageUrl(sessionId, type) {
       return `${API_BASE}/results/${sessionId}/image/${type}`;
+  },
+
+  async generateDem(sessionId) {
+    const response = await fetch(`${API_BASE}/dem/${sessionId}/generate`, {
+      method: 'POST'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to generate DEM');
+    }
+    return await response.json();
+  },
+
+  async fetchDemData(sessionId) {
+    const response = await fetch(`${API_BASE}/dem/${sessionId}/data`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch DEM elevation data');
+    }
+    return await response.json();
+  },
+
+  getDemImageUrl(sessionId, type) {
+    return `${API_BASE}/dem/${sessionId}/image/${type}`;
   }
 };

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, WebSocket, WebSocketDisconnect
-from services.registration_service import RegistrationService
-from utils.background_tasks import manager
+from backend.services.registration_service import RegistrationService
+from backend.utils.background_tasks import manager
 
 router = APIRouter()
 

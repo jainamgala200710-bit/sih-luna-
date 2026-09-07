@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-from api.endpoints import upload, registration, results
+from backend.api.endpoints import upload, registration, results, dem
 
 # Initialize FastAPI App
 app = FastAPI(
@@ -37,6 +37,7 @@ os.makedirs("backend/cache/results", exist_ok=True)
 app.include_router(upload.router, prefix="/api/v1/upload", tags=["Ingestion"])
 app.include_router(registration.router, prefix="/api/v1/registration", tags=["Execution"])
 app.include_router(results.router, prefix="/api/v1/results", tags=["Telemetry"])
+app.include_router(dem.router, prefix="/api/v1/dem", tags=["3D DEM"])
 
 @app.get("/health")
 def health_check():

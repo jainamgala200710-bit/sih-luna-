@@ -1,0 +1,21 @@
+{
+    "pair_id": "pair_001",
+    "geometric_parameters": {
+        "translation_x": 25.927190772425206,
+        "translation_y": 29.09323946536084,
+        "rotation_deg": -8.402630354076354,
+        "scale": 0.9960669983563645,
+        "perspective_distortion_max_pct": 0.05
+    },
+    "illumination_parameters": {
+        "contrast_alpha": 1.0522670311470954,
+        "brightness_beta": -22.0,
+        "gamma": 1.8286511906428,
+        "gradient_intensity": 0.2647518358307025,
+        "gradient_angle_rad": 0.39177283524690293
+    },
+    "degradation": {
+        "blur_kernel": 5,
+        "noise_sigma": 5.0
+    }
+}

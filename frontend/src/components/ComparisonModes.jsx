@@ -1,25 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiService } from '../services/apiService';
+import { Layers, Sliders, Eye, RefreshCw, Grid, Maximize2 } from 'lucide-react';
 
 const ComparisonModes = ({ sessionId }) => {
   const [mode, setMode] = useState('blend'); // blend, swipe, flicker
   const [sourceImage, setSourceImage] = useState(null);
   const [referenceImage, setReferenceImage] = useState(null);
-  const [H, setH] = useState(null); // Homography matrix
+  const [H, setH] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [swipePosition, setSwipePosition] = useState(50); // 0-100% for swipe mode
-  const [flickerInterval, setFlickerInterval] = useState(null);
-  const [showSource, setShowSource] = useState(true); // For flicker mode
+  const [swipePosition, setSwipePosition] = useState(50);
+  const [blendAlpha, setBlendAlpha] = useState(0.5);
+  const [flickerSpeed, setFlickerSpeed] = useState(500); // ms
+  const [showSource, setShowSource] = useState(true);
+  const [showGrid, setShowGrid] = useState(true);
 
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
 
-  // Load images and homography data when sessionId changes
+  const [resultsMeta, setResultsMeta] = useState(null);
+
+  // Load images and homography matrix
   useEffect(() => {
     if (!sessionId) return;
 
-    // Fetch results to get homography matrix
     apiService.fetchResults(sessionId)
       .then(results => {
+        setResultsMeta(results);
         if (results.H_matrix) {
           setH(results.H_matrix);
         }
@@ -28,7 +34,6 @@ const ComparisonModes = ({ sessionId }) => {
         console.error('Failed to fetch results:', err);
       });
 
-    // Load source and reference images using the API
     const loadImage = (url) => {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -42,140 +47,140 @@ const ComparisonModes = ({ sessionId }) => {
       loadImage(apiService.getRawImageUrl(sessionId, 'source')),
       loadImage(apiService.getRawImageUrl(sessionId, 'reference'))
     ])
-    .then(([srcImg, refImg]) => {
-      setSourceImage(srcImg);
-      setReferenceImage(refImg);
-      setIsLoaded(true);
-    })
-    .catch(err => {
-      console.error('Failed to load images:', err);
-    });
-
-    // Cleanup flicker interval on unmount or sessionId change
-    return () => {
-      if (flickerInterval) {
-        clearInterval(flickerInterval);
-      }
-    };
+      .then(([srcImg, refImg]) => {
+        setSourceImage(srcImg);
+        setReferenceImage(refImg);
+        setIsLoaded(true);
+      })
+      .catch(err => {
+        console.error('Failed to load images:', err);
+      });
   }, [sessionId]);
 
-  // Start/stop flicker interval based on mode
+  // Flicker interval timer
   useEffect(() => {
     if (mode === 'flicker' && isLoaded) {
       const interval = setInterval(() => {
-        setShowSource(!showSource);
-      }, 500); // Flicker every 500ms
-      setFlickerInterval(interval);
-    } else {
-      if (flickerInterval) {
-        clearInterval(flickerInterval);
-        setFlickerInterval(null);
-      }
+        setShowSource(prev => !prev);
+      }, flickerSpeed);
+      return () => clearInterval(interval);
     }
+  }, [mode, isLoaded, flickerSpeed]);
 
-    return () => {
-      if (flickerInterval) {
-        clearInterval(flickerInterval);
-      }
-    };
-  }, [mode, isLoaded, flickerInterval]);
-
-  // Apply homography transformation and draw to canvas
+  // Canvas rendering - Works even when H is null (fallback to Identity matrix for unwarped comparison)
   useEffect(() => {
-    if (!isLoaded || !sourceImage || !referenceImage || !H || !canvasRef.current) return;
+    if (!isLoaded || !sourceImage || !referenceImage || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
 
-    // Set canvas size to match images (assuming same size)
     canvas.width = sourceImage.width;
     canvas.height = sourceImage.height;
 
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Depending on mode, draw differently
-    if (mode === 'blend') {
-      drawBlendMode(ctx, sourceImage, referenceImage, H);
-    } else if (mode === 'swipe') {
-      drawSwipeMode(ctx, sourceImage, referenceImage, H, swipePosition);
-    } else if (mode === 'flicker') {
-      drawFlickerMode(ctx, sourceImage, referenceImage, H, showSource);
-    }
-  }, [isLoaded, sourceImage, referenceImage, H, mode, swipePosition, showSource]);
+    // Fallback Identity matrix if H is null (e.g. OHRC vs TMC2 extreme scale differential)
+    const effectiveH = H || [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 
-  // Draw blend mode: alpha blend source and warped reference
-  const drawBlendMode = (ctx, sourceImg, referenceImg, H) => {
-    // Draw source image
+    if (mode === 'blend') {
+      drawBlendMode(ctx, sourceImage, referenceImage, effectiveH, blendAlpha);
+    } else if (mode === 'swipe') {
+      drawSwipeMode(ctx, sourceImage, referenceImage, effectiveH, swipePosition);
+    } else if (mode === 'flicker') {
+      drawFlickerMode(ctx, sourceImage, referenceImage, effectiveH, showSource);
+    }
+
+    if (showGrid) {
+      drawTacticalGrid(ctx, canvas.width, canvas.height);
+    }
+  }, [isLoaded, sourceImage, referenceImage, H, mode, swipePosition, blendAlpha, showSource, showGrid]);
+
+  const drawTacticalGrid = (ctx, w, h) => {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+
+    const step = 64;
+    for (let x = step; x < w; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = step; y < h; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    // Center Crosshair
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.4)';
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 20, h / 2);
+    ctx.lineTo(w / 2 + 20, h / 2);
+    ctx.moveTo(w / 2, h / 2 - 20);
+    ctx.lineTo(w / 2, h / 2 + 20);
+    ctx.stroke();
+
+    ctx.restore();
+  };
+
+  const drawBlendMode = (ctx, sourceImg, referenceImg, H, alpha) => {
     ctx.globalAlpha = 1.0;
     ctx.drawImage(sourceImg, 0, 0);
 
-    // Save context for transformation
     ctx.save();
-
-    // Apply homography with translation compensation to keep images aligned and visible
     ctx.translate(-H[0][2], -H[1][2]);
-    ctx.transform(
-      H[0][0], H[1][0],
-      H[0][1], H[1][1],
-      0, 0
-    );
-
-    // Draw reference image with transformation and alpha blend
-    ctx.globalAlpha = 0.5;
+    ctx.transform(H[0][0], H[1][0], H[0][1], H[1][1], 0, 0);
+    ctx.globalAlpha = alpha;
     ctx.drawImage(referenceImg, 0, 0);
     ctx.restore();
   };
 
-  // Draw swipe mode: split screen with slider
   const drawSwipeMode = (ctx, sourceImg, referenceImg, H, position) => {
-    // Draw source image on left side
+    const splitX = (canvasRef.current.width * position) / 100;
+
+    // Left side: Source
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, canvas.width * position / 100, canvas.height);
+    ctx.rect(0, 0, splitX, canvasRef.current.height);
     ctx.clip();
     ctx.drawImage(sourceImg, 0, 0);
     ctx.restore();
 
-    // Draw warped reference image on right side
+    // Right side: Warped Reference
     ctx.save();
     ctx.beginPath();
-    ctx.rect(canvas.width * position / 100, 0, canvas.width * (100 - position) / 100, canvas.height);
+    ctx.rect(splitX, 0, canvasRef.current.width - splitX, canvasRef.current.height);
     ctx.clip();
-
-    // Apply homography transformation with compensation
     ctx.translate(-H[0][2], -H[1][2]);
-    ctx.transform(
-      H[0][0], H[1][0],
-      H[0][1], H[1][1],
-      0, 0
-    );
+    ctx.transform(H[0][0], H[1][0], H[0][1], H[1][1], 0, 0);
     ctx.drawImage(referenceImg, 0, 0);
     ctx.restore();
 
-    // Draw slider handle
-    ctx.fillStyle = 'var(--accent-primary)';
-    ctx.fillRect(
-      canvas.width * position / 100 - 2,
-      0,
-      4,
-      canvas.height
-    );
+    // Dividing Laser Line
+    ctx.save();
+    ctx.strokeStyle = 'var(--primary-neon)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'var(--primary-neon)';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(splitX, 0);
+    ctx.lineTo(splitX, canvasRef.current.height);
+    ctx.stroke();
+    ctx.restore();
   };
 
-  // Draw flicker mode: alternate between source and warped reference
-  const drawFlickerMode = (ctx, sourceImg, referenceImg, H, showSource) => {
-    if (showSource) {
+  const drawFlickerMode = (ctx, sourceImg, referenceImg, H, isSource) => {
+    if (isSource) {
       ctx.drawImage(sourceImg, 0, 0);
     } else {
       ctx.save();
-      // Apply homography transformation with compensation
       ctx.translate(-H[0][2], -H[1][2]);
-      ctx.transform(
-        H[0][0], H[1][0],
-        H[0][1], H[1][1],
-        0, 0
-      );
+      ctx.transform(H[0][0], H[1][0], H[0][1], H[1][1], 0, 0);
       ctx.drawImage(referenceImg, 0, 0);
       ctx.restore();
     }
@@ -183,135 +188,194 @@ const ComparisonModes = ({ sessionId }) => {
 
   if (!sessionId) {
     return (
-      <div className="image-canvas-container hover-lift" style={{
-        height: '600px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--border-focus)',
-        background: 'var(--bg-elevated)',
-        border: '1px dashed var(--accent-secondary)'
-      }}>
-        <p>No session selected</p>
+      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-annotation)' }}>
+        <Layers size={32} style={{ color: 'var(--primary-neon)', margin: '0 auto 1rem', opacity: 0.8 }} />
+        <h4 style={{ color: 'var(--text-telemetry)' }}>REGISTRATION LAYER INACTIVE</h4>
+        <p style={{ fontSize: '0.8125rem', marginTop: '0.5rem' }}>
+          Execute the registration pipeline to compute the projective homography matrix.
+        </p>
       </div>
     );
   }
 
   if (!isLoaded) {
     return (
-      <div className="image-canvas-container hover-lift" style={{
-        height: '600px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--border-focus)',
-        background: 'var(--bg-elevated)',
-        border: '1px dashed var(--accent-secondary)'
-      }}>
-        <p>Loading registration results...</p>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--accent-primary)',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          marginTop: '16px'
-        }}></div>
-        <style>{`
-          @keyframes spin {
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
+      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-annotation)' }}>
+        <span className="ping-dot" style={{ color: 'var(--primary-neon)', width: '10px', height: '10px' }} />
+        <p style={{ marginTop: '1rem', fontFamily: 'var(--font-telemetry)', fontSize: '0.8125rem' }}>
+          WARPING ORBITAL LAYERS WITH HOMOGRAPHY MATRIX...
+        </p>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', height: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h4 style={{ color: 'var(--text-main)' }}>Registration Validation Layer</h4>
-        <div style={{ display: 'flex', gap: '8px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+      {/* Tactical Toolbar */}
+      <div className="glass-panel" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Mode Selectors */}
+        <div style={{ display: 'flex', gap: '6px' }}>
           <button
-            className={`btn ${mode === 'blend' ? 'btn-primary' : ''}`}
+            className={`btn ${mode === 'blend' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setMode('blend')}
-            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+            style={{ padding: '6px 14px', fontSize: '0.75rem' }}
           >
-            Alpha Blend
+            <Layers size={14} /> Alpha Blend
           </button>
           <button
-            className={`btn ${mode === 'swipe' ? 'btn-primary' : ''}`}
+            className={`btn ${mode === 'swipe' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setMode('swipe')}
-            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+            style={{ padding: '6px 14px', fontSize: '0.75rem' }}
           >
-            Slider Swipe
+            <Sliders size={14} /> Split Swipe
           </button>
           <button
-            className={`btn ${mode === 'flicker' ? 'btn-primary' : ''}`}
+            className={`btn ${mode === 'flicker' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setMode('flicker')}
-            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+            style={{ padding: '6px 14px', fontSize: '0.75rem' }}
           >
-            Flicker
+            <Eye size={14} /> Frequency Flicker
+          </button>
+        </div>
+
+        {/* Dynamic Controls based on mode */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {mode === 'blend' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontFamily: 'var(--font-telemetry)', fontSize: '0.6875rem', color: 'var(--text-annotation)' }}>
+                OPACITY: {(blendAlpha * 100).toFixed(0)}%
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={blendAlpha}
+                onChange={(e) => setBlendAlpha(parseFloat(e.target.value))}
+                style={{ width: '100px' }}
+              />
+            </div>
+          )}
+
+          {mode === 'swipe' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontFamily: 'var(--font-telemetry)', fontSize: '0.6875rem', color: 'var(--text-annotation)' }}>
+                SPLIT: {swipePosition}%
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={swipePosition}
+                onChange={(e) => setSwipePosition(parseInt(e.target.value))}
+                style={{ width: '120px' }}
+              />
+            </div>
+          )}
+
+          {mode === 'flicker' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontFamily: 'var(--font-telemetry)', fontSize: '0.6875rem', color: 'var(--text-annotation)' }}>
+                FREQ:
+              </span>
+              {[
+                { label: '1 Hz', ms: 1000 },
+                { label: '2 Hz', ms: 500 },
+                { label: '4 Hz', ms: 250 }
+              ].map(f => (
+                <button
+                  key={f.label}
+                  className={`btn ${flickerSpeed === f.ms ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '3px 8px', fontSize: '0.6875rem' }}
+                  onClick={() => setFlickerSpeed(f.ms)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Grid Reticle Toggle */}
+          <button
+            className={`btn ${showGrid ? 'btn-secondary' : ''}`}
+            onClick={() => setShowGrid(!showGrid)}
+            title="Toggle Tactical Reticle Grid"
+            style={{
+              padding: '6px 10px',
+              fontSize: '0.75rem',
+              color: showGrid ? 'var(--primary-neon)' : 'var(--text-muted)',
+              borderColor: showGrid ? 'rgba(34, 211, 238, 0.4)' : 'var(--outline)'
+            }}
+          >
+            <Grid size={14} />
           </button>
         </div>
       </div>
 
-      <div className="image-canvas-container hover-lift" style={{
-        height: '600px',
-        position: 'relative'
-      }}>
+      {/* Main Validation Viewport */}
+      <div
+        ref={containerRef}
+        className="image-canvas-container tactical-corner"
+        style={{ flex: 1, minHeight: 0, position: 'relative' }}
+      >
         <canvas
           ref={canvasRef}
-          width="800"
-          height="600"
           style={{
             width: '100%',
             height: '100%',
+            objectFit: 'contain',
             display: 'block'
           }}
         />
 
-        {/* Swipe mode slider */}
-        {mode === 'swipe' && (
-          <div style={{
-            position: 'absolute',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '80%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Swipe Position</span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={swipePosition}
-              onChange={(e) => setSwipePosition(parseInt(e.target.value))}
-              style={{ flex: 1 }}
-            />
-            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{swipePosition}%</span>
-          </div>
-        )}
+        {/* HUD Overlay Labels */}
+        <div style={{
+          position: 'absolute',
+          top: '12px',
+          left: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          pointerEvents: 'none',
+          maxWidth: '85%'
+        }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {H ? (
+              <span className="telemetry-chip telemetry-chip-cyan" style={{ fontSize: '0.625rem' }}>
+                HOMOGRAPHY PROJECTED ({resultsMeta?.model || 'AFFINE'})
+              </span>
+            ) : (
+              <span className="telemetry-chip telemetry-chip-warning" style={{ fontSize: '0.625rem' }}>
+                ⚠️ PRE-REGISTRATION INSPECTION (INSUFFICIENT INLIERS &lt; 4)
+              </span>
+            )}
 
-        {/* Flicker mode info */}
-        {mode === 'flicker' && (
-          <div style={{
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(0,0,0,0.6)',
-            color: 'white',
-            padding: '8px 16px',
-            borderRadius: '4px',
-            fontSize: '0.9rem'
-          }}>
-            Flicker mode: alternating images every 500ms
+            {mode === 'flicker' && (
+              <span className="telemetry-chip telemetry-chip-violet" style={{ fontSize: '0.625rem' }}>
+                ACTIVE: {showSource ? 'SOURCE BINARY' : (H ? 'WARPED REFERENCE' : 'UNWARPED REFERENCE')}
+              </span>
+            )}
+            {mode === 'swipe' && (
+              <span className="telemetry-chip telemetry-chip-nominal" style={{ fontSize: '0.625rem' }}>
+                LEFT: SOURCE | RIGHT: {H ? 'WARPED TARGET' : 'UNWARPED TARGET'}
+              </span>
+            )}
           </div>
-        )}
+
+          {!H && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.15)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '6px 10px',
+              color: 'var(--status-warning)',
+              fontSize: '0.6875rem',
+              fontFamily: 'var(--font-telemetry)'
+            }}>
+              DIAGNOSTIC AUTOPSY: 20x Scale differential & illumination gradient inverted local gradient histograms. Unwarped layers loaded for visual inspection.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

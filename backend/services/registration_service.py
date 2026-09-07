@@ -52,7 +52,45 @@ class RegistrationService:
             kp1, kp2, matches = pipe.run_matching(source, ref)
             logger.info(f"Found {len(matches)} matches for session {session_id}")
 
-            assert_minimum_matches(matches, minimum=4, stage="Classical SIFT Matching")
+            # Fallback to multi-scale coarse-to-fine matcher if SIFT matches are low
+            if len(matches) < 4:
+                logger.info(f"Matches < 4 ({len(matches)}), attempting Multi-Scale ScaleSpaceMatcher fallback...")
+                try:
+                    from src.multiscale.scale_space_matcher import ScaleSpaceMatcher
+                    scale_matcher = ScaleSpaceMatcher(matcher_algo='SIFT', levels=3)
+                    ms_kp1, ms_kp2, ms_matches = scale_matcher.match_coarse_to_fine(source, ref)
+                    if len(ms_matches) >= 4:
+                        kp1, kp2, matches = ms_kp1, ms_kp2, ms_matches
+                        logger.info(f"ScaleSpaceMatcher succeeded with {len(matches)} matches")
+                except Exception as ms_err:
+                    logger.warning(f"ScaleSpaceMatcher fallback attempted but failed: {ms_err}")
+
+            if len(matches) < 4:
+                # Documented in Required.md: Extreme multi-modal case (OHRC vs TMC2)
+                err_msg = f"Not enough matches to compute geometric transformation ({len(matches)} found, minimum 4 required)."
+                logger.warning(f"Pipeline exhaustion for session {session_id}: {err_msg}")
+                
+                failure_results = {
+                    "model": "N/A",
+                    "rmse": "FAILED",
+                    "inliers": 0,
+                    "total_matches": len(matches),
+                    "H_matrix": None,
+                    "dossier_index": -1,
+                    "status": "INSUFFICIENT_MATCHES",
+                    "error": err_msg,
+                    "diagnostic_report": {
+                        "incident": "Extreme Multi-Modal Scale Differential (e.g. OHRC 0.25m/px vs TMC-2 5.0m/px)",
+                        "cause": "Scale variance (20x) exceeds classical SIFT octave limits. Inverted crater shadow topologies shattered local gradient histogram KNN dependencies.",
+                        "remediation": "Requires Deep Learning Semantic Matcher (LoFTR) or coarse orbit ephemeris pre-alignment."
+                    }
+                }
+                with open(os.path.join(out_dir, "summary.json"), "w") as f:
+                    json.dump(failure_results, f)
+                    
+                await manager.broadcast_progress(session_id, "complete", 100, failure_results)
+                logger.info(f"Exhaustion summary recorded for session {session_id}")
+                return
 
             # 2. Refinement
             logger.info(f"Broadcasting verified progress for session {session_id}")
@@ -117,7 +155,8 @@ class RegistrationService:
                 "inliers": inliers_count,
                 "total_matches": len(r_matches),
                 "H_matrix": H.tolist() if H is not None else None,
-                "dossier_index": dossier_idx
+                "dossier_index": dossier_idx,
+                "status": "SUCCESS" if H is not None else "DEGRADED"
             }
 
             logger.info(f"Writing results for session {session_id}: {results}")
@@ -135,7 +174,19 @@ class RegistrationService:
 
         except PipelineExhaustionError as e:
             logger.error(f"PipelineExhaustionError for session {session_id}: {e}")
-            await manager.broadcast_progress(session_id, "error", 0, e.to_dict())
+            failure_results = {
+                "model": "N/A",
+                "rmse": "FAILED",
+                "inliers": 0,
+                "total_matches": 0,
+                "H_matrix": None,
+                "dossier_index": -1,
+                "status": "EXHAUSTION",
+                "error": str(e)
+            }
+            with open(os.path.join(out_dir, "summary.json"), "w") as f:
+                json.dump(failure_results, f)
+            await manager.broadcast_progress(session_id, "complete", 100, failure_results)
         except Exception as e:
             logger.error(f"Unexpected error in pipeline for session {session_id}: {e}", exc_info=True)
             await manager.broadcast_progress(session_id, "error", 0, {"error": str(e)})
