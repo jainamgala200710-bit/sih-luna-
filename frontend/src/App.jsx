@@ -13,7 +13,11 @@ import {
   Activity,
   Compass,
   FileText,
-  Mountain
+  Mountain,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Info
 } from 'lucide-react';
 import ImageViewer from './components/ImageViewer';
 import MatchVisualizer from './components/MatchVisualizer';
@@ -28,6 +32,9 @@ function App() {
   const [sessionId, setSessionId] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedSession, setCopiedSession] = useState(false);
+  const [showTelemetry, setShowTelemetry] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  const [activeSpecTab, setActiveSpecTab] = useState('benchmarks');
   const [utcTime, setUtcTime] = useState('');
   const [telemetryLogs, setTelemetryLogs] = useState([
     { time: 'INIT', msg: 'Orbital Ground Station telemetry initialized.' },
@@ -204,6 +211,22 @@ function App() {
               {isProcessing ? 'SOLVER ACTIVE' : 'TELEMETRY NOMINAL'}
             </span>
 
+            {/* Telemetry HUD Toggle Button */}
+            <button
+              className={`btn ${showTelemetry ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setShowTelemetry(!showTelemetry)}
+              style={{ padding: '6px 12px', fontSize: '0.75rem', gap: '6px' }}
+              title="Toggle Matrix & Telemetry Feed Drawer"
+            >
+              <BarChart3 size={14} />
+              <span>Telemetry HUD</span>
+              {pipelineState.metrics.rmse !== '--' && (
+                <span className="telemetry-chip telemetry-chip-nominal" style={{ fontSize: '0.5625rem', padding: '1px 5px', marginLeft: '4px' }}>
+                  {pipelineState.metrics.rmse}px
+                </span>
+              )}
+            </button>
+
             {sessionId && (
               <button
                 className="btn btn-secondary"
@@ -219,122 +242,163 @@ function App() {
         </div>
       </header>
 
-      {/* 12-Column Dashboard Grid */}
-      <div className="dashboard-grid">
+      {/* Adaptive Flexible Dashboard Grid */}
+      <div className={`dashboard-grid ${!showTelemetry ? 'right-collapsed' : ''} ${railCollapsed ? 'left-collapsed' : ''}`}>
         {/* Left Orbital Rail (HUD Controls & Sequencer) */}
-        <aside className="orbital-rail">
+        <aside className={`orbital-rail ${railCollapsed ? 'collapsed' : ''}`}>
+          {/* Collapse/Expand Header */}
+          <div style={{ display: 'flex', justifyContent: railCollapsed ? 'center' : 'space-between', alignItems: 'center', width: '100%', marginBottom: '2px' }}>
+            {!railCollapsed && (
+              <span style={{ fontFamily: 'var(--font-telemetry)', fontSize: '0.6875rem', color: 'var(--text-annotation)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Mission Control
+              </span>
+            )}
+            <button
+              className="btn btn-secondary"
+              onClick={() => setRailCollapsed(!railCollapsed)}
+              style={{ padding: '4px', minWidth: '26px', height: '26px' }}
+              title={railCollapsed ? "Expand Control Rail" : "Collapse Control Rail"}
+            >
+              {railCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+          </div>
+
           {/* Primary Action Button */}
           <button
             className="btn btn-primary"
             onClick={handleUploadAndRun}
             disabled={isProcessing || !files.source || !files.reference}
             style={{
-              padding: '14px',
-              fontSize: '0.9375rem',
+              padding: railCollapsed ? '10px' : '12px',
+              fontSize: railCollapsed ? '0.75rem' : '0.875rem',
               letterSpacing: '0.02em',
               justifyContent: 'center',
               width: '100%'
             }}
+            title="Execute Registration Pipeline"
           >
-            <Play size={18} fill={!isProcessing ? 'currentColor' : 'none'} />
-            {isProcessing ? `EXECUTING STG (${pipelineState.progress}%)` : 'EXECUTE REGISTRATION'}
+            <Play size={16} fill={!isProcessing ? 'currentColor' : 'none'} />
+            {!railCollapsed && (isProcessing ? `EXECUTING (${pipelineState.progress}%)` : 'EXECUTE REGISTRATION')}
           </button>
 
-          {/* Tested Real-Image Proxy Benchmarks (from Required.md) */}
-          <div className="glass-panel" style={{ padding: '12px' }}>
-            <div className="rail-section-header">
-              <span>Proxy Benchmarks (Required.md)</span>
-              <FileText size={12} color="var(--secondary-neon)" />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6875rem' }}>
-                <span style={{ color: 'var(--text-annotation)' }}>TMC2 vs TMC2:</span>
-                <span className="telemetry-chip telemetry-chip-nominal" style={{ fontSize: '0.5625rem', padding: '1px 5px' }}>
-                  22 INLIERS (AFFINE)
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6875rem' }}>
-                <span style={{ color: 'var(--text-annotation)' }}>OHRC vs OHRC:</span>
-                <span className="telemetry-chip telemetry-chip-cyan" style={{ fontSize: '0.5625rem', padding: '1px 5px' }}>
-                  5 INLIERS (ROT 15°)
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6875rem' }}>
-                <span style={{ color: 'var(--text-annotation)' }}>OHRC vs TMC2:</span>
-                <span className="telemetry-chip telemetry-chip-warning" style={{ fontSize: '0.5625rem', padding: '1px 5px' }}>
-                  0 INLIERS (20X SCALE)
-                </span>
-              </div>
-            </div>
-          </div>
+          {!railCollapsed && (
+            <>
+              {/* Streamlined Combined Benchmarks & Sensor Specs Card */}
+              <div className="glass-panel" style={{ padding: '10px' }}>
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', borderBottom: '1px solid var(--outline)', paddingBottom: '4px' }}>
+                  <button
+                    className={`btn ${activeSpecTab === 'benchmarks' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveSpecTab('benchmarks')}
+                    style={{ padding: '3px 8px', fontSize: '0.6875rem', flex: 1 }}
+                  >
+                    Benchmarks
+                  </button>
+                  <button
+                    className={`btn ${activeSpecTab === 'sensors' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveSpecTab('sensors')}
+                    style={{ padding: '3px 8px', fontSize: '0.6875rem', flex: 1 }}
+                  >
+                    Sensors
+                  </button>
+                </div>
 
-          {/* Quick Mission Ephemeris Specs */}
-          <div className="glass-panel" style={{ padding: '12px' }}>
-            <div className="rail-section-header">
-              <span>Target Sensor Modalities</span>
-              <Radio size={12} color="var(--primary-neon)" />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-annotation)' }}>Source Sensor:</span>
-                <span style={{ fontFamily: 'var(--font-telemetry)', color: 'var(--text-telemetry)' }}>TMC-2 Stereo</span>
+                {activeSpecTab === 'benchmarks' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6875rem' }}>
+                      <span style={{ color: 'var(--text-annotation)' }}>TMC2 vs TMC2:</span>
+                      <span className="telemetry-chip telemetry-chip-nominal" style={{ fontSize: '0.5625rem', padding: '1px 5px' }}>
+                        22 INL (AFFINE)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6875rem' }}>
+                      <span style={{ color: 'var(--text-annotation)' }}>OHRC vs OHRC:</span>
+                      <span className="telemetry-chip telemetry-chip-cyan" style={{ fontSize: '0.5625rem', padding: '1px 5px' }}>
+                        5 INL (ROT 15°)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6875rem' }}>
+                      <span style={{ color: 'var(--text-annotation)' }}>OHRC vs TMC2:</span>
+                      <span className="telemetry-chip telemetry-chip-warning" style={{ fontSize: '0.5625rem', padding: '1px 5px' }}>
+                        0 INL (20X SCALE)
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.6875rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-annotation)' }}>Source:</span>
+                      <span style={{ fontFamily: 'var(--font-telemetry)', color: 'var(--text-telemetry)' }}>TMC-2 Stereo</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-annotation)' }}>Reference:</span>
+                      <span style={{ fontFamily: 'var(--font-telemetry)', color: 'var(--text-telemetry)' }}>LROC NAC</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-annotation)' }}>Verification:</span>
+                      <span style={{ fontFamily: 'var(--font-telemetry)', color: 'var(--status-nominal)' }}>MAGSAC++</span>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-annotation)' }}>Reference Target:</span>
-                <span style={{ fontFamily: 'var(--font-telemetry)', color: 'var(--text-telemetry)' }}>LROC Narrow Angle</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-annotation)' }}>Verification:</span>
-                <span style={{ fontFamily: 'var(--font-telemetry)', color: 'var(--status-nominal)' }}>MAGSAC++ Robust</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Pipeline Stage Sequencer */}
-          <div className="glass-panel" style={{ padding: '14px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div className="rail-section-header" style={{ marginBottom: '10px' }}>
-              <span>Orbital Pipeline Sequence</span>
-              <Activity size={12} color="var(--primary-neon)" />
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              <PipelineVisualizer currentStage={pipelineState.stage} progress={pipelineState.progress} />
-            </div>
-          </div>
+              {/* Pipeline Stage Sequencer with Full Vertical Breathing Room */}
+              <div className="glass-panel" style={{ padding: '12px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: '260px' }}>
+                <div className="rail-section-header" style={{ marginBottom: '8px' }}>
+                  <span>Orbital Pipeline Sequence</span>
+                  <Activity size={12} color="var(--primary-neon)" />
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  <PipelineVisualizer currentStage={pipelineState.stage} progress={pipelineState.progress} />
+                </div>
+              </div>
+            </>
+          )}
         </aside>
 
         {/* Center Operational Canvas */}
         <main className="center-canvas">
-          {/* Tactical Tab Navigation */}
+          {/* Spacious, Un-congested HUD Nav Tabs */}
           <div className="hud-nav">
             <button
               className={`hud-nav-tab ${activeTab === 'raw' ? 'active' : ''}`}
               onClick={() => setActiveTab('raw')}
             >
-              <ImageIcon size={15} /> [1] Ingestion & Presets
+              <span className="tab-badge">01</span>
+              <ImageIcon size={16} />
+              <span>Ingestion & Presets</span>
             </button>
 
             <button
               className={`hud-nav-tab ${activeTab === 'matches' ? 'active' : ''}`}
               onClick={() => setActiveTab('matches')}
               disabled={!sessionId || isProcessing || pipelineState.stage !== 'complete'}
+              title={!sessionId ? "Execute registration to view XAI match diagnostics" : ""}
             >
-              <Crosshair size={15} /> [2] XAI Match Diagnostics
+              <span className="tab-badge">02</span>
+              <Crosshair size={16} />
+              <span>XAI Match Diagnostics</span>
             </button>
 
             <button
               className={`hud-nav-tab ${activeTab === 'compare' ? 'active' : ''}`}
               onClick={() => setActiveTab('compare')}
               disabled={!sessionId || isProcessing || pipelineState.stage !== 'complete'}
+              title={!sessionId ? "Execute registration to view alignment validation" : ""}
             >
-              <Layers size={15} /> [3] Homographic Alignment Studio
+              <span className="tab-badge">03</span>
+              <Layers size={16} />
+              <span>Alignment Studio</span>
             </button>
 
             <button
               className={`hud-nav-tab ${activeTab === 'dem' ? 'active' : ''}`}
               onClick={() => setActiveTab('dem')}
               disabled={!sessionId || isProcessing}
+              title={!sessionId ? "Ingest stereo images to view 3D DEM" : ""}
             >
-              <Mountain size={15} color="var(--primary-neon)" /> [4] 3D Lunar Elevation Model (DEM)
+              <span className="tab-badge">04</span>
+              <Mountain size={16} color="var(--primary-neon)" />
+              <span>3D Elevation (DEM)</span>
             </button>
           </div>
 
@@ -388,16 +452,31 @@ function App() {
           </div>
         </main>
 
-        {/* Right Telemetry & Analytics Sidebar */}
-        <aside className="telemetry-sidebar">
-          {/* Key Convergence Metrics */}
-          <div className="glass-panel tactical-corner" style={{ padding: '14px' }}>
-            <div className="rail-section-header" style={{ marginBottom: '10px' }}>
-              <span>Convergence Telemetry</span>
-              <Compass size={12} color="var(--primary-neon)" />
+        {/* Right Telemetry & Analytics Sidebar (Collapsible) */}
+        {showTelemetry && (
+          <aside className="telemetry-sidebar">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+              <span style={{ fontFamily: 'var(--font-telemetry)', fontSize: '0.6875rem', color: 'var(--text-annotation)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Orbital Telemetry HUD
+              </span>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowTelemetry(false)}
+                style={{ padding: '2px 8px', fontSize: '0.6875rem' }}
+                title="Collapse Telemetry Sidebar"
+              >
+                ✕ Close
+              </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {/* Key Convergence Metrics */}
+            <div className="glass-panel tactical-corner" style={{ padding: '12px' }}>
+              <div className="rail-section-header" style={{ marginBottom: '8px' }}>
+                <span>Convergence Telemetry</span>
+                <Compass size={12} color="var(--primary-neon)" />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div className="glass-panel-inset" style={{ padding: '8px' }}>
                 <span style={{ fontFamily: 'var(--font-telemetry)', fontSize: '0.625rem', color: 'var(--text-annotation)', textTransform: 'uppercase' }}>
                   Residual RMSE
@@ -480,6 +559,7 @@ function App() {
             </div>
           </div>
         </aside>
+      )}
       </div>
     </div>
   );
